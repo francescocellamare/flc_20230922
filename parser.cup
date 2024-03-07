@@ -1,0 +1,212 @@
+import java_cup.runtime.*;
+import java.util.*;
+import java.io.*;
+
+
+init with {:
+    //classHash = new HashMap<String, HashMap<String, Integer>>();
+    //classHash = new HashMap();
+    //list = new LinkedList<Integer>();
+:};
+
+parser code {:
+    public void report_error(String message, Object info) {
+        StringBuffer m = new StringBuffer(message);
+        if (info instanceof Symbol) {
+            if (((Symbol)info).left != 1 && ((Symbol)info).right != 1) {
+                if (((Symbol)info).left != -1 && ((Symbol)info).right != -1) {
+                    int line = (((Symbol)info).left) + 1;
+                    int column = (((Symbol)info).right) + 1;
+                    m.append(" (line " + line + " column " + column + ")");
+                }
+            }
+            System.err.println(m);
+        }
+    }
+
+    // public static HashMap<String, HashMap<String, Integer>> classHash;
+    //public static HashMap classHash;
+    //public static LinkedList list;
+    /* Return semantic value of symbol in position (position) */
+    public Object stack(int position) {
+        return (((Symbol)stack.elementAt(tos + position)).value);
+    }
+:};
+/*
+action code {:
+    class Attrib {
+        private String name;
+        private Integer weight;
+        
+        Attrib(String name, Integer weight){
+            this.name = name;
+            this.weight = weight;
+        }
+	
+        String getName(){
+            return this.name;
+        }
+        Integer getWeight(){
+            return this.weight;
+        }
+
+    };
+:};*/
+
+
+//////////////////////////////////
+///// SYMBOLS DECLARATION
+/////////////////////////////////
+
+terminal SEP, TOKEN1, TOKEN2, TOKEN3, SC, MINUS, PLUS, DIV, STAR, OB, CB, OS, CS, INS_WD, CMP_WD, SUM_WD, CM;
+// terminal String ...;
+terminal Integer UINT;
+
+non terminal prog, header, placeholder, commands, command, math_exp, exp_list;
+// non terminal HashMap ...;
+// non terminal Object[] ...;
+// non terminal Integer ...;
+// non terminal String name, ...;
+
+precedence left PLUS, MINUS;
+precedence left STAR, DIV;
+
+//////////////////////////////////
+///// GRAMMAR
+/////////////////////////////////
+
+start with prog;
+
+prog ::= header SEP commands;
+
+header ::= placeholder TOKEN1 SC placeholder TOKEN2 SC placeholder TOKEN2 SC placeholder
+        | placeholder TOKEN2 SC placeholder TOKEN1 SC placeholder TOKEN2 SC placeholder
+        | placeholder TOKEN2 SC placeholder TOKEN2 SC placeholder TOKEN1 SC placeholder
+        | placeholder TOKEN2 SC placeholder TOKEN1 SC placeholder
+        | placeholder TOKEN1 SC placeholder TOKEN2 SC placeholder
+;
+placeholder ::= placeholder TOKEN3 SC | ;
+
+////////////////////////////////
+///// Commands Section
+////////////////////////////////
+
+
+commands ::= command command command:a command:b {: 
+            Integer[] com = new Integer[2];
+            com[1] = (Integer)a;
+            com[0] = (Integer)b;
+            RESULT = com;
+        :}
+        | commands command:c command:d {:
+            Integer[] com = new Integer[2];
+            com[1] = (Integer)c;
+            com[0] = (Integer)d;
+            RESULT = com;
+        :};
+
+command ::= INS_WD OS math_exp:val CS SC {:
+                System.out.println(val);
+                RESULT = (Integer)val;
+            :}
+            | CMP_WD OS math_exp:val1 CS CM OS math_exp:val2 CS SC {:
+                Integer val1_c, val2_c;
+                if(parser.stack(-9) instanceof Integer[]){
+                    Integer[] com = (Integer[])parser.stack(-9);
+                    val1_c = (Integer)com[0];
+                    val2_c = (Integer)com[1];
+                }
+                else if(parser.stack(-10) instanceof Integer[]){
+                    val1_c = (Integer)parser.stack(-9);
+                    Integer[] com = (Integer[])parser.stack(-10);
+                    val2_c = (Integer)com[1];
+                }
+                else{
+                    val1_c = (Integer)parser.stack(-9);
+                    val2_c = (Integer)parser.stack(-10);
+                }
+
+
+                if(val1_c == val2_c){
+                    System.out.println(val1);
+                    RESULT = (Integer)val1 ;
+                }
+                else {
+                    System.out.println(val2);
+                    RESULT = (Integer)val2 ;
+                }
+            :}
+            | CMP_WD OS math_exp:val1 CS SC {:
+                Integer val1_c, val2_c;
+                if(parser.stack(-5) instanceof Integer[]){
+                    Integer[] com = (Integer[])parser.stack(-5);
+                    val1_c = (Integer)com[0];
+                    val2_c = (Integer)com[1];
+                }
+                else if(parser.stack(-6) instanceof Integer[]){
+                    val1_c = (Integer)parser.stack(-5);
+                    Integer[] com = (Integer[])parser.stack(-6);
+                    val2_c = (Integer)com[1];
+                }
+                else{
+                    val1_c = (Integer)parser.stack(-5);
+                    val2_c = (Integer)parser.stack(-6);
+                }
+
+                if(val1_c == val2_c){
+                    System.out.println(val1);
+                    RESULT = (Integer)val1 ;
+                }
+                else {
+                    System.out.println(0);
+                    RESULT = (Integer)0 ;
+                }
+            :}
+            | SUM_WD exp_list:val SC {:
+                System.out.println(val);
+                RESULT = (Integer)val;
+            :};
+
+exp_list ::= OS math_exp:val CS {:
+                Integer count = (Integer)val;
+                RESULT = (Integer)count;
+            :} | exp_list:sum CM OS math_exp:val CS {:
+                RESULT = (Integer)sum + (Integer)val;
+            :} ;
+
+// -----------------------------------------------------------changed
+// math_exp ::= OS UINT:a PLUS UINT:b CS {:
+//                 RESULT = a+b;
+//             :}
+//             | OS UINT:a MINUS UINT:b CS {:
+//                 RESULT = a-b;
+//             :}
+//             | OS UINT:a STAR UINT:b CS {:
+//                 RESULT = a*b;
+//             :}
+//             | OS UINT:a DIV UINT:b CS {:
+//                 RESULT = a/b;
+//             :}
+//             | OS UINT:a CS {:
+//                 RESULT = a;
+//             :}
+//             ;
+
+math_exp ::= math_exp:res1 PLUS math_exp:res2 {:
+                RESULT = (Integer)res1 + (Integer)res2;
+            :}
+            | math_exp:res1 MINUS math_exp:res2{:
+                RESULT = (Integer)res1 - (Integer)res2;
+            :}
+            | math_exp:res1 STAR math_exp:res2 {:
+                RESULT = (Integer)res1 * (Integer)res2;
+            :}
+            | math_exp:res1 DIV math_exp:res2 {:
+                RESULT = (Integer)res1 / (Integer)res2;
+            :}
+            | OB math_exp:res CB {:
+                RESULT = (Integer)res;
+            :}
+            | UINT:res {:
+                RESULT = (Integer)res;
+            :}; 
